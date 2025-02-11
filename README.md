@@ -1,4 +1,3 @@
-cat > README.md << 'EOL'
 # Remote Jobs API
 
 FastAPI-based API for scraping remote job postings from multiple company career pages worldwide.
