@@ -282,6 +282,11 @@
       "name": "WOO X",
       "url": "https://woox.io/careers",
       "selector": ".erkaxel5"
+    },
+    {
+      "name": "Example Company",
+      "url": "https://example.com/careers",
+      "selector": ".job-listing"
     }
   ]
 } 

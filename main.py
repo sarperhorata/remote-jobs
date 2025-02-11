@@ -14,6 +14,10 @@ from fastapi.security.api_key import APIKeyHeader
 from auth_manager import AuthManager
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from user_manager import UserManager
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -359,6 +363,14 @@ class JobScraper:
                 
         except Exception as e:
             self.logger.error(f"Error updating companies file: {str(e)}")
+
+# Static dosyaları ve template'leri ayarla
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 if __name__ == "__main__":
     logging.basicConfig(
