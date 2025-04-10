@@ -32,7 +32,7 @@ fi
 
 # Netlify deployment
 echo "🌐 Starting Netlify deployment..."
-if ! netlify deploy --prod; then
+if ! netlify deploy --prod --site spiffy-licorice-69cf1c; then
     handle_error "Netlify" "Failed to deploy to Netlify"
 fi
 
