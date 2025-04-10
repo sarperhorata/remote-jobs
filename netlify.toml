@@ -44,5 +44,5 @@
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://remote-jobs-api.onrender.com;"
 
 [build.environment]
-  REACT_APP_API_URL = "https://remote-jobs-monitor-backend.onrender.com"
-  NODE_VERSION = "18" 
+  NODE_VERSION = "18"
+  REACT_APP_API_URL = "https://remote-jobs-backend.onrender.com" 
