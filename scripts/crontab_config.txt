@@ -1,0 +1,23 @@
+# Remote Jobs Uygulama Cron Yapılandırması
+# Bu dosyayı 'crontab -e' komutu ile açılan dosyaya ekleyin
+
+# Her 10 dakikada bir Render uygulamasını uyandır
+*/10 * * * * curl -s https://remote-jobs-backend.onrender.com/health > /dev/null 2>&1
+
+# Her gece yarısı (00:00) eski iş ilanlarını arşivle
+0 0 * * * cd /Users/sarperhorata/Remote\ Jobs && python -m backend.utils.job_archiver > /dev/null 2>&1
+
+# Her gece yarısı (00:15) GitHub, Netlify ve Render'a otomatik deploy yap
+15 0 * * * /Users/sarperhorata/Remote\ Jobs/scripts/deploy.sh > /tmp/deploy_log.txt 2>&1
+
+# Crontab kullanım notları:
+# */10 * * * * : Her 10 dakikada bir
+# 0 0 * * *    : Her gece yarısı (00:00)
+# 15 0 * * *   : Her gece 00:15'te
+#
+# Zaman formatı: dakika saat gün ay haftanın_günü
+# > /dev/null 2>&1 : Çıktıları yok say
+# > /tmp/deploy_log.txt 2>&1 : Çıktıları belirtilen dosyaya kaydet
+
+# Cron işlerini listelemek için: crontab -l
+# Cron işlerini düzenlemek için: crontab -e 

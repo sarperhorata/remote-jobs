@@ -5,6 +5,9 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import sqlite3
 import asyncio
+from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
 
 from utils.config import get_db_url
 from models.models import (
@@ -13,10 +16,24 @@ from models.models import (
     SelectorBase
 )
 
+# Load environment variables
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 # SQLite veritabanı dosya yolu
 DB_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "remotejobs.db")
+
+# MongoDB connection string
+MONGODB_URL = "mongodb+srv://remotejobs:taBQw9bkYRAtFUOS@remotejobs.tn0gxu0.mongodb.net/"
+
+# Create MongoDB client
+client = MongoClient(MONGODB_URL)
+async_client = AsyncIOMotorClient(MONGODB_URL)
+
+# Get database
+db = client.remote_jobs
+async_db = async_client.remote_jobs
 
 # SQLite veritabanı bağlantısı için connection pool
 # İleride SQLAlchemy veya başka bir ORM ile değiştirilebilir
@@ -749,4 +766,33 @@ async def get_change_logs(monitor_id: Optional[int] = None, limit: int = 100, of
         
         change_logs.append(change_log)
     
-    return change_logs 
+    return change_logs
+
+def test_connection():
+    """
+    MongoDB bağlantısını test eder.
+    """
+    try:
+        client = MongoClient(MONGODB_URL)
+        client.admin.command('ping')
+        logger.info("MongoDB connection successful!")
+        return True
+    except Exception as e:
+        logger.error(f"MongoDB connection failed: {str(e)}")
+        return False
+
+# Collections
+users = db.users
+jobs = db.jobs
+profiles = db.profiles
+notifications = db.notifications
+ads = db.ads
+support_tickets = db.support_tickets
+
+# Async collections
+async_users = async_db.users
+async_jobs = async_db.jobs
+async_profiles = async_db.profiles
+async_notifications = async_db.notifications
+async_ads = async_db.ads
+async_support_tickets = async_db.support_tickets 

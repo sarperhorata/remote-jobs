@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -24,8 +24,20 @@ from ..utils.email import (
     send_verification_email,
     send_password_reset_email
 )
+from ..utils.security import SecurityUtils
+from ..utils.captcha import CaptchaVerifier
+import logging
 
 router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# JWT ayarları
+SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+logger = logging.getLogger(__name__)
 
 # CV dosyaları için geçici dizin
 UPLOAD_DIR = "uploads/cv"
@@ -37,7 +49,29 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Email kontrolü
+    # CAPTCHA doğrulaması
+    if user_data.recaptcha_response:
+        if not CaptchaVerifier.verify_recaptcha(user_data.recaptcha_response):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CAPTCHA verification failed"
+            )
+    
+    # E-posta doğrulaması
+    if not SecurityUtils.validate_email(user_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
+    
+    # Şifre güvenlik kontrolü
+    if not SecurityUtils.validate_password(user_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+        )
+    
+    # E-posta ve telefon benzersizlik kontrolü
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -54,10 +88,13 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # LinkedIn verilerini çek
     linkedin_data = {}
     if user_data.linkedin_url:
-        linkedin_data = fetch_linkedin_data(user_data.linkedin_url)
-        if linkedin_data:
-            user_data.name = linkedin_data.get('name', user_data.name)
-            user_data.title = linkedin_data.get('title', user_data.title)
+        try:
+            linkedin_data = fetch_linkedin_data(user_data.linkedin_url)
+            if linkedin_data and "name" in linkedin_data:
+                user_data.name = user_data.name or linkedin_data["name"]
+                user_data.title = linkedin_data.get('title', user_data.title)
+        except Exception as e:
+            logger.error(f"Error fetching LinkedIn data: {str(e)}")
     
     # Kullanıcı oluştur
     hashed_password = get_password_hash(user_data.password)
@@ -84,6 +121,14 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # CAPTCHA doğrulaması
+    if form_data.recaptcha_response:
+        if not CaptchaVerifier.verify_recaptcha(form_data.recaptcha_response):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CAPTCHA verification failed"
+            )
+    
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -99,7 +144,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             detail="Email not verified. Please check your email for verification link."
         )
     
-    access_token = create_access_token(data={"sub": user.email})
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)

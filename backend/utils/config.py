@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-# Load .env file
+# Load environment variables
 load_dotenv()
 
 # Set logging level
@@ -14,58 +14,69 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# API Settings
+# API settings
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
-API_DEBUG = os.getenv("API_DEBUG", "False").lower() == "true"
-API_RELOAD = os.getenv("API_RELOAD", "False").lower() == "true"
+API_DEBUG = os.getenv("API_DEBUG", "True").lower() == "true"
+API_RELOAD = os.getenv("API_RELOAD", "True").lower() == "true"
 
-# Determine if we're in production (Render, Heroku, etc.)
-IS_PRODUCTION = os.getenv("RENDER", "False").lower() == "true" or os.getenv("HEROKU", "False").lower() == "true"
+# CORS settings
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "True").lower() == "true"
 
-# Database settings
-# Default PostgreSQL database URL for Neon
-DEFAULT_DB_URL = "postgresql://neondb_owner:npg_nrj9cM1GPTHv@ep-gentle-rain-a280y9q9-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-# Get database URL from environment or use the default Neon URL
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
-
-# Legacy database settings (will be used if DATABASE_URL is not provided)
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "remotejobs")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+# JWT settings
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "30"))
 
 # Email settings
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USER = os.getenv("EMAIL_USER", "")
+EMAIL_USERNAME = os.getenv("EMAIL_USERNAME", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")
-EMAIL_ENABLED = bool(EMAIL_USER and EMAIL_PASSWORD)
 
 # Telegram settings
-# Default Telegram bot token
-DEFAULT_TELEGRAM_BOT_TOKEN = "8116251711:AAFhGxXtOJu2eCqCORoDr46XWq7ejqMeYnY"
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", DEFAULT_TELEGRAM_BOT_TOKEN)
-TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+# Database settings
+DATABASE_URL = os.getenv("DATABASE_URL", "mongodb+srv://sarperhorata:wEW5oQbUiNBaPGFk@remotejobs.tn0gxu0.mongodb.net/")
 
 # Monitor settings
-DEFAULT_CHECK_INTERVAL = int(os.getenv("DEFAULT_CHECK_INTERVAL", "60"))  # minutes
-MAX_CHECK_INTERVAL = int(os.getenv("MAX_CHECK_INTERVAL", "1440"))  # minutes (24 hours)
-MIN_CHECK_INTERVAL = int(os.getenv("MIN_CHECK_INTERVAL", "15"))  # minutes
+DEFAULT_CHECK_INTERVAL = 60  # minutes
+MAX_CHECK_INTERVAL = 1440  # minutes (24 hours)
+MIN_CHECK_INTERVAL = 5  # minutes
 
-# Job listing crawling settings
-REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))  # seconds
-REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "1.0"))  # seconds
-USER_AGENT = os.getenv(
-    "USER_AGENT", 
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-)
+# Cache settings
+CACHE_TTL = 3600  # seconds (1 hour)
+CACHE_MAX_SIZE = 1000  # items
 
-# CORS settings
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
-CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "False").lower() == "true"
+# Rate limiting
+RATE_LIMIT_WINDOW = 3600  # seconds (1 hour)
+RATE_LIMIT_MAX_REQUESTS = 1000  # requests per window
+
+# File upload
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
+ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt"]
+UPLOAD_DIR = "uploads"
+
+# Premium features
+PREMIUM_PRICE = 8.99  # USD/month
+FREE_TRIAL_DAYS = 7
+MAX_FREE_JOB_VIEWS = 10
+MAX_REFERRAL_DAYS = 30
+
+# Notification settings
+EMAIL_NOTIFICATION_INTERVAL = 24  # hours
+TELEGRAM_NOTIFICATION_INTERVAL = 1  # hours
+
+# Security
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_REQUIRE_UPPERCASE = True
+PASSWORD_REQUIRE_LOWERCASE = True
+PASSWORD_REQUIRE_NUMBERS = True
+PASSWORD_REQUIRE_SPECIAL = True
 
 def get_db_url() -> str:
     """
@@ -102,13 +113,14 @@ def get_all_config() -> Dict[str, Any]:
         "email": {
             "host": EMAIL_HOST,
             "port": EMAIL_PORT,
-            "user": EMAIL_USER,
+            "user": EMAIL_USERNAME,
             "from": EMAIL_FROM,
-            "enabled": EMAIL_ENABLED,
+            "enabled": bool(EMAIL_USERNAME and EMAIL_PASSWORD),
         },
         "telegram": {
-            "enabled": TELEGRAM_ENABLED,
+            "enabled": bool(TELEGRAM_BOT_TOKEN),
             "bot_token": TELEGRAM_BOT_TOKEN,
+            "chat_id": TELEGRAM_CHAT_ID,
         },
         "monitor": {
             "default_interval": DEFAULT_CHECK_INTERVAL,
@@ -123,5 +135,40 @@ def get_all_config() -> Dict[str, Any]:
         "cors": {
             "origins": CORS_ORIGINS,
             "allow_credentials": CORS_ALLOW_CREDENTIALS,
+        },
+        "jwt": {
+            "secret": JWT_SECRET,
+            "algorithm": JWT_ALGORITHM,
+            "expire_minutes": JWT_EXPIRE_MINUTES,
+        },
+        "cache": {
+            "ttl": CACHE_TTL,
+            "max_size": CACHE_MAX_SIZE,
+        },
+        "rate_limit": {
+            "window": RATE_LIMIT_WINDOW,
+            "max_requests": RATE_LIMIT_MAX_REQUESTS,
+        },
+        "file_upload": {
+            "max_size": MAX_UPLOAD_SIZE,
+            "allowed_extensions": ALLOWED_EXTENSIONS,
+            "upload_dir": UPLOAD_DIR,
+        },
+        "premium": {
+            "price": PREMIUM_PRICE,
+            "free_trial_days": FREE_TRIAL_DAYS,
+            "max_free_job_views": MAX_FREE_JOB_VIEWS,
+            "max_referral_days": MAX_REFERRAL_DAYS,
+        },
+        "notification": {
+            "email_interval": EMAIL_NOTIFICATION_INTERVAL,
+            "telegram_interval": TELEGRAM_NOTIFICATION_INTERVAL,
+        },
+        "security": {
+            "password_min_length": PASSWORD_MIN_LENGTH,
+            "require_uppercase": PASSWORD_REQUIRE_UPPERCASE,
+            "require_lowercase": PASSWORD_REQUIRE_LOWERCASE,
+            "require_numbers": PASSWORD_REQUIRE_NUMBERS,
+            "require_special": PASSWORD_REQUIRE_SPECIAL,
         },
     } 
