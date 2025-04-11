@@ -32,7 +32,7 @@ import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import parse from 'html-react-parser';
 import DOMPurify from 'dompurify';
-import jobService from '../../services/jobService';
+import jobService from '../../services/AllServices';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 

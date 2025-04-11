@@ -2,6 +2,7 @@ from pydantic import BaseModel, HttpUrl, Field, EmailStr
 from typing import List, Optional, Dict, Any, Union
 from enum import Enum
 from datetime import datetime
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime
 
 class WebsiteType(str, Enum):
     REMOTE_OK = "remote_ok"
@@ -290,4 +291,20 @@ class JobApplicationCreate(BaseModel):
     job_id: int
     cover_letter: Optional[str] = None
     resume_url: Optional[HttpUrl] = None
-    notes: Optional[str] = None 
+    notes: Optional[str] = None
+
+class UserNotificationPreference(Base):
+    """Model for storing user notification preferences"""
+    __tablename__ = 'user_notification_preferences'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=False, unique=True)
+    telegram_chat_id = Column(BigInteger, nullable=True)
+    email = Column(String, nullable=True)
+    notify_on_deployment = Column(Boolean, default=True)
+    notify_on_error = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserNotificationPreference(user_id={self.user_id})>" 

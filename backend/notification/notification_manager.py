@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 
-from models.models import Notification, NotificationType
+from models.models import Notification, NotificationType, UserNotificationPreference
 
 logger = logging.getLogger(__name__)
 
@@ -268,4 +268,53 @@ class NotificationManager:
             "description": "This is a test notification from Remote Jobs Monitor."
         }
         
-        return await self.send_notification(notification, "test", test_data) 
+        return await self.send_notification(notification, "test", test_data)
+
+    async def send_deployment_notification(self, deployment_info: dict):
+        """
+        Send deployment notification to all subscribed users
+        
+        Args:
+            deployment_info (dict): Dictionary containing deployment information
+                - environment: str (e.g. 'production', 'staging')
+                - status: str (e.g. 'success', 'failed')
+                - commit: str (commit hash)
+                - message: str (deployment message)
+                - timestamp: datetime
+        """
+        try:
+            # Get all users with deployment notifications enabled
+            async with self.db.session() as session:
+                users = await session.query(UserNotificationPreference).filter(
+                    UserNotificationPreference.notify_on_deployment == True
+                ).all()
+
+            if not users:
+                logger.info("No users subscribed to deployment notifications")
+                return
+
+            # Format deployment message
+            status_emoji = "✅" if deployment_info["status"] == "success" else "❌"
+            message = (
+                f"{status_emoji} Deployment {deployment_info['status'].upper()}\n\n"
+                f"Environment: {deployment_info['environment']}\n"
+                f"Commit: {deployment_info['commit']}\n"
+                f"Message: {deployment_info['message']}\n"
+                f"Time: {deployment_info['timestamp']}"
+            )
+
+            # Send notifications to each user
+            for user in users:
+                if user.telegram_chat_id:
+                    await self.send_telegram_message(user.telegram_chat_id, message)
+                if user.email:
+                    await self.send_email(
+                        user.email,
+                        f"Deployment {deployment_info['status'].upper()}",
+                        message
+                    )
+
+            logger.info(f"Sent deployment notifications to {len(users)} users")
+        except Exception as e:
+            logger.error(f"Error sending deployment notifications: {str(e)}")
+            raise 

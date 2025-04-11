@@ -1,295 +1,178 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import {
-  Box,
-  Container,
-  Grid,
-  Typography,
-  Button,
-  Chip,
-  Card,
-  CardContent,
-  Divider,
-  IconButton,
-  Skeleton,
-  Alert,
-} from '@mui/material';
-import {
-  ArrowBack,
-  Share,
-  Bookmark,
-  BookmarkBorder,
-  LocationOn,
-  Work,
-  AttachMoney,
-  AccessTime,
-} from '@mui/icons-material';
-import { format } from 'date-fns';
-import { jobService, Job } from '../../services/jobService';
+import { jobService } from '../../services/AllServices';
+import { Job } from '../../types/job';
 
-export const JobDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
-
-  const { data: job, isLoading, error } = useQuery<Job>(
-    ['job', id],
-    () => jobService.fetchJobById(id!),
-    { enabled: !!id }
-  );
-
-  const { data: similarJobs } = useQuery<Job[]>(
-    ['similarJobs', id],
-    () => jobService.fetchSimilarJobs(id!),
-    { enabled: !!id }
-  );
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: job?.title,
-          text: `Check out this job: ${job?.title} at ${job?.company}`,
-          url: window.location.href,
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-      }
-    }
+// Extend the Job type to include the optional companyName property
+interface ExtendedJob extends Partial<{
+  companyName: string;
+  _id: string;
+}> {
+  id: string;
+  title: string;
+  company?: {
+    name: string;
+    logo?: string;
+    description?: string;
+    website?: string;
   };
+  description: string;
+  location: string;
+  type: string;
+  postedAt: string;
+  skills?: string[];
+}
 
-  const handleSaveJob = async () => {
-    if (!job) return;
-    try {
-      if (savedJobs.includes(job.id)) {
-        await jobService.unsaveJob(job.id);
-        setSavedJobs(savedJobs.filter(id => id !== job.id));
-      } else {
-        await jobService.saveJob(job.id);
-        setSavedJobs([...savedJobs, job.id]);
-      }
-    } catch (error) {
-      console.error('Error saving job:', error);
-    }
-  };
-
-  if (isLoading) {
+const JobDetail: React.FC = () => {
+  const { id } = useParams<{ id?: string }>();
+  
+  // Early return if no id is provided
+  if (!id) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Skeleton variant="rectangular" height={200} />
-            <Box sx={{ mt: 2 }}>
-              <Skeleton variant="text" height={40} />
-              <Skeleton variant="text" height={20} />
-              <Skeleton variant="text" height={20} />
-            </Box>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Skeleton variant="rectangular" height={300} />
-          </Grid>
-        </Grid>
-      </Container>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-4">No job ID provided</h1>
+        <p className="mb-4">Please select a job from the job listings.</p>
+        <Link to="/jobs" className="text-blue-600 hover:underline">
+          Back to Jobs
+        </Link>
+      </div>
     );
   }
 
-  if (error || !job) {
+  const { data: job, isLoading } = useQuery(['job', id], () => jobService.getJobById(id), {
+    enabled: !!id // Only run the query if id exists
+  });
+
+  const { data: similarJobs } = useQuery(['similarJobs', id], () => jobService.getSimilarJobs(id), {
+    enabled: !!id // Only run the query if id exists
+  });
+
+  if (isLoading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error">Job not found</Alert>
-      </Container>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-4">Job not found</h1>
+        <Link to="/jobs" className="text-blue-600 hover:underline">
+          Back to Jobs
+        </Link>
+      </div>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button
-        startIcon={<ArrowBack />}
-        onClick={() => navigate('/jobs')}
-        sx={{ mb: 3 }}
-      >
-        Back to Jobs
-      </Button>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                {job.companyLogo && (
-                  <Box
-                    component="img"
-                    src={job.companyLogo}
-                    alt={job.company}
-                    sx={{ width: 60, height: 60, mr: 2 }}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-center mb-6">
+                {job.company?.logo && (
+                  <img 
+                    src={job.company.logo} 
+                    alt={job.company.name} 
+                    className="w-16 h-16 rounded-full mr-4"
                   />
                 )}
-                <Box>
-                  <Typography variant="h4" gutterBottom>
-                    {job.title}
-                  </Typography>
-                  <Typography variant="h6" color="text.secondary">
-                    {job.company}
-                  </Typography>
-                </Box>
-              </Box>
+                <div>
+                  <h1 className="text-2xl font-bold">{job.title}</h1>
+                  <p className="text-gray-600">{job.company?.name || job.companyName}</p>
+                </div>
+              </div>
 
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <Chip
-                  icon={<LocationOn />}
-                  label={job.location}
-                  variant="outlined"
-                />
-                <Chip
-                  icon={<Work />}
-                  label={job.type}
-                  variant="outlined"
-                />
-                <Chip
-                  icon={<AttachMoney />}
-                  label={job.salary}
-                  variant="outlined"
-                />
-                <Chip
-                  icon={<AccessTime />}
-                  label={format(new Date(job.postedDate), 'MMM d, yyyy')}
-                  variant="outlined"
-                />
-              </Box>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
+                <span>{job.location}</span>
+                <span>•</span>
+                <span>{job.type}</span>
+                <span>•</span>
+                <span>Posted {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'Recently'}</span>
+              </div>
 
-              <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  fullWidth
+              <div className="prose max-w-none mb-6">
+                <h2 className="text-xl font-semibold mb-4">Job Description</h2>
+                <div dangerouslySetInnerHTML={{ __html: job.description }} />
+              </div>
+
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold mb-4">Required Skills</h2>
+                <div className="flex flex-wrap gap-2">
+                  {job.skills?.map(skill => (
+                    <span 
+                      key={skill} 
+                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+                onClick={() => jobService.applyForJob('current-user', id)}
+              >
+                Apply Now
+              </button>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div>
+            {/* Company Info */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">About {job.company?.name || job.companyName}</h2>
+              <p className="text-gray-600 mb-4">{job.company?.description || ''}</p>
+              {job.company?.website && (
+                <a 
+                  href={job.company.website} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
                 >
-                  Apply Now
-                </Button>
-                <IconButton onClick={handleShare}>
-                  <Share />
-                </IconButton>
-                <IconButton onClick={handleSaveJob}>
-                  {savedJobs.includes(job.id) ? <Bookmark /> : <BookmarkBorder />}
-                </IconButton>
-              </Box>
+                  Visit Website
+                </a>
+              )}
+            </div>
 
-              <Typography variant="h6" gutterBottom>
-                Job Description
-              </Typography>
-              <Typography paragraph>{job.description}</Typography>
-
-              <Typography variant="h6" gutterBottom>
-                Responsibilities
-              </Typography>
-              <ul>
-                {job.responsibilities.map((item: string, index: number) => (
-                  <li key={index}>
-                    <Typography paragraph>{item}</Typography>
-                  </li>
+            {/* Similar Jobs */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Similar Jobs</h2>
+              <div className="space-y-4">
+                {similarJobs?.map((similarJob: Job) => (
+                  <Link 
+                    key={similarJob._id || similarJob.id} 
+                    to={`/jobs/${similarJob._id || similarJob.id}`}
+                    className="block p-4 border rounded-lg hover:border-blue-500 transition"
+                  >
+                    <h3 className="font-medium">{similarJob.title}</h3>
+                    <p className="text-gray-600 text-sm">{similarJob.company?.name || similarJob.companyName}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {similarJob.skills?.slice(0, 2).map(skill => (
+                        <span 
+                          key={skill} 
+                          className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </Link>
                 ))}
-              </ul>
-
-              <Typography variant="h6" gutterBottom>
-                Requirements
-              </Typography>
-              <ul>
-                {job.requirements.map((item: string, index: number) => (
-                  <li key={index}>
-                    <Typography paragraph>{item}</Typography>
-                  </li>
-                ))}
-              </ul>
-
-              <Typography variant="h6" gutterBottom>
-                Benefits
-              </Typography>
-              <ul>
-                {job.benefits.map((item: string, index: number) => (
-                  <li key={index}>
-                    <Typography paragraph>{item}</Typography>
-                  </li>
-                ))}
-              </ul>
-
-              <Typography variant="h6" gutterBottom>
-                Required Skills
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {job.skills.map((skill: string, index: number) => (
-                  <Chip key={index} label={skill} />
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Job Summary
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Location
-                  </Typography>
-                  <Typography>{job.location}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Job Type
-                  </Typography>
-                  <Typography>{job.type}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Salary
-                  </Typography>
-                  <Typography>{job.salary}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Posted Date
-                  </Typography>
-                  <Typography>
-                    {format(new Date(job.postedDate), 'MMM d, yyyy')}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Similar Jobs
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              {similarJobs?.map((similarJob) => (
-                <Box
-                  key={similarJob.id}
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/jobs/${similarJob.id}`)}
-                >
-                  <Typography variant="subtitle1" gutterBottom>
-                    {similarJob.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {similarJob.company}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {similarJob.location} • {similarJob.type}
-                  </Typography>
-                  <Divider sx={{ my: 2 }} />
-                </Box>
-              ))}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </Container>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-}; 
+};
+
+export default JobDetail; 
