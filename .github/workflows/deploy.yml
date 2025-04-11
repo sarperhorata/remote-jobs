@@ -32,7 +32,7 @@ jobs:
       - name: Install Dependencies
         run: |
           cd frontend
-          npm ci
+          npm install --legacy-peer-deps
         continue-on-error: false
           
       - name: Build Frontend
