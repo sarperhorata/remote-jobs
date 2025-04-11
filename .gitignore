@@ -77,3 +77,4 @@ dump.rdb
 
 # .env file
 .env
+backup/
