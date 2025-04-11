@@ -1,6 +1,7 @@
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 from .job_archiver import archive_old_jobs
 from .cronjob import wake_up_render
@@ -18,21 +19,18 @@ def setup_scheduler():
         archive_old_jobs,
         CronTrigger(hour=0, minute=0),
         id='archive_old_jobs',
-        name='Archive old jobs',
-        replace_existing=True
+        name='Archive old jobs daily at midnight'
     )
     
     # Schedule wake-up job to run every 14 minutes
     scheduler.add_job(
         wake_up_render,
-        'interval',
-        minutes=14,
+        IntervalTrigger(minutes=14),
         id='wake_up_render',
-        name='Wake up Render service',
-        replace_existing=True
+        name='Wake up Render service every 14 minutes'
     )
     
     scheduler.start()
-    logger.info("Scheduler started with jobs: archive_old_jobs, wake_up_render")
+    logger.info("Scheduler started with jobs: archive_old_jobs and wake_up_render")
     
     return scheduler 
