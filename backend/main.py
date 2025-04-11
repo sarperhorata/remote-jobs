@@ -105,10 +105,27 @@ def start_telegram_bot():
     """
     Start the Telegram bot (this runs in a separate thread)
     """
-    try:
-        telegram_bot.run()
-    except Exception as e:
-        logger.error(f"Error running Telegram bot: {e}")
+    max_retries = 3
+    retry_count = 0
+    retry_delay = 10  # seconds
+    
+    while retry_count < max_retries:
+        try:
+            logger.info(f"Starting Telegram bot (attempt {retry_count + 1}/{max_retries})...")
+            telegram_bot.run()
+            # If run() returns without exception, break the loop
+            break
+        except Exception as e:
+            retry_count += 1
+            logger.error(f"Error running Telegram bot (attempt {retry_count}/{max_retries}): {e}")
+            if retry_count < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                import time
+                time.sleep(retry_delay)
+                # Double the delay for next attempt
+                retry_delay *= 2
+            else:
+                logger.error(f"Failed to start Telegram bot after {max_retries} attempts. Will not retry.")
 
 @app.on_event("shutdown")
 async def shutdown_event():

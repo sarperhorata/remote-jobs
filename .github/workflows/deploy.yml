@@ -1,8 +1,9 @@
+---
 name: Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   schedule:
     - cron: '0 0 * * *'  # Her gün gece yarısı
 
@@ -119,5 +120,6 @@ jobs:
               \"message\": \"${COMMIT_MSG}\",
               \"timestamp\": \"${TIMESTAMP}\"
             }" \
-            "$BACKEND_URL/notification/deployment" || echo "Failed to send deployment notification"
+            "$BACKEND_URL/notification/deployment" || \
+            echo "Failed to send deployment notification"
         continue-on-error: true 

@@ -3,6 +3,7 @@ import asyncio
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
+import time
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, ContextTypes, filters
@@ -734,7 +735,19 @@ class RemoteJobsBot:
             logger.warning("Cannot run Telegram bot: bot is disabled or not properly initialized")
             return
             
-        self.application.run_polling()
+        try:
+            logger.info("Starting Telegram bot polling...")
+            self.application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, error_callback=self._error_callback)
+        except Exception as e:
+            logger.error(f"Error in Telegram bot polling: {str(e)}")
+            # Try to restart the bot after a short delay
+            time.sleep(5)
+            logger.info("Attempting to restart Telegram bot...")
+            self.application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True, error_callback=self._error_callback)
+            
+    def _error_callback(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log errors caused by updates."""
+        logger.error(f"Telegram bot error: {context.error} caused by {update}")
     
     async def run_async(self):
         """Run the bot polling in a non-blocking way"""
