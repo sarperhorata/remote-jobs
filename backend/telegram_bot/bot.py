@@ -7,7 +7,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, ContextTypes, filters
 
-from utils.config import TELEGRAM_BOT_TOKEN, logger
+from utils.config import TELEGRAM_BOT_TOKEN, TELEGRAM_ENABLED, logger
 from models.models import UserProfile, UserProfileCreate, UserProfileUpdate, WorkType, JobType, WorkHours
 
 # Enable logging
@@ -41,12 +41,29 @@ class RemoteJobsBot:
     
     def __init__(self):
         """Initialize the bot with token"""
+        if not TELEGRAM_ENABLED:
+            logger.warning("Telegram bot is disabled. Set TELEGRAM_BOT_TOKEN environment variable to enable it.")
+            self.enabled = False
+            self.application = None
+            return
+            
         self.token = TELEGRAM_BOT_TOKEN
-        self.application = Application.builder().token(self.token).build()
-        self.setup_handlers()
+        self.enabled = True
+        try:
+            self.application = Application.builder().token(self.token).build()
+            self.setup_handlers()
+            logger.info("Telegram bot initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Telegram bot: {str(e)}")
+            self.enabled = False
+            self.application = None
         
     def setup_handlers(self):
         """Setup all command and message handlers"""
+        # Skip if bot is disabled
+        if not self.enabled or not self.application:
+            return
+            
         # Command handlers
         self.application.add_handler(CommandHandler("start", self.start))
         self.application.add_handler(CommandHandler("help", self.help))
@@ -712,23 +729,31 @@ class RemoteJobsBot:
         return True
     
     def run(self):
-        """Run the bot until the user sends a signal to stop."""
-        # Start the Bot
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        """Run the bot polling in a blocking way"""
+        if not self.enabled or not self.application:
+            logger.warning("Cannot run Telegram bot: bot is disabled or not properly initialized")
+            return
+            
+        self.application.run_polling()
     
     async def run_async(self):
-        """Run the bot asynchronously."""
+        """Run the bot polling in a non-blocking way"""
+        if not self.enabled or not self.application:
+            logger.warning("Cannot run Telegram bot: bot is disabled or not properly initialized")
+            return
+            
         await self.application.initialize()
         await self.application.start()
         await self.application.updater.start_polling()
     
     async def stop(self):
-        """Stop the bot gracefully."""
-        if self.application.updater.running:
-            await self.application.updater.stop()
-        if self.application.running:
-            await self.application.stop()
-            await self.application.shutdown()
+        """Stop the bot polling"""
+        if not self.enabled or not self.application:
+            return
+            
+        await self.application.updater.stop()
+        await self.application.stop()
+        await self.application.shutdown()
 
 
 # Run the bot if this file is executed directly

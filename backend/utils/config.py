@@ -39,9 +39,21 @@ EMAIL_FROM = os.getenv("EMAIL_FROM", "")
 # Telegram settings
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_TOKEN.strip())
+
+if not TELEGRAM_ENABLED and (os.getenv("TELEGRAM_BOT_TOKEN") is not None):
+    logger.warning("TELEGRAM_BOT_TOKEN is set but appears to be empty. Telegram features will be disabled.")
+elif not TELEGRAM_ENABLED:
+    logger.info("TELEGRAM_BOT_TOKEN is not set. Telegram features will be disabled.")
 
 # Database settings
 DATABASE_URL = os.getenv("DATABASE_URL", "mongodb+srv://sarperhorata:wEW5oQbUiNBaPGFk@remotejobs.tn0gxu0.mongodb.net/")
+IS_PRODUCTION = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+# Crawler settings
+USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))  # seconds
+REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "1.5"))  # seconds between requests
 
 # Monitor settings
 DEFAULT_CHECK_INTERVAL = 60  # minutes
@@ -118,7 +130,7 @@ def get_all_config() -> Dict[str, Any]:
             "enabled": bool(EMAIL_USERNAME and EMAIL_PASSWORD),
         },
         "telegram": {
-            "enabled": bool(TELEGRAM_BOT_TOKEN),
+            "enabled": TELEGRAM_ENABLED,
             "bot_token": TELEGRAM_BOT_TOKEN,
             "chat_id": TELEGRAM_CHAT_ID,
         },
