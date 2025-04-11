@@ -3,47 +3,47 @@
 # Load environment variables
 source .env
 
-# Function to send Telegram notification
+# Function to send notification to Telegram
 send_telegram_notification() {
-    local message="$1"
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-        -d "chat_id=${TELEGRAM_CHAT_ID}" \
-        -d "text=${message}" \
-        -d "parse_mode=HTML" > /dev/null
+    platform=$1
+    status=$2
+    details=$3
+    curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+        -d "chat_id=$TELEGRAM_CHAT_ID" \
+        -d "parse_mode=HTML" \
+        -d "text=🚀 <b>Deployment Update</b>%0A%0APlatform: $platform%0AStatus: $status%0ADetails: $details"
 }
 
-# Function to handle deployment errors
-handle_error() {
-    local service="$1"
-    local error="$2"
-    local message="❌ ${service} deployment failed: ${error}"
-    echo "$message"
-    send_telegram_notification "$message"
-    exit 1
-}
+echo "Starting deployment process..."
 
-# GitHub deployment
-echo "🚀 Starting GitHub deployment..."
+# GitHub Deployment
+echo "Deploying to GitHub..."
 git add .
-git commit -m "Auto-deploy: $(date '+%Y-%m-%d %H:%M:%S')"
-if ! git push origin main; then
-    handle_error "GitHub" "Failed to push to repository"
+git commit -m "Auto-deploy: $(date +'%Y-%m-%d %H:%M:%S')"
+if git push origin main; then
+    send_telegram_notification "GitHub" "✅ Success" "Code pushed successfully"
+else
+    send_telegram_notification "GitHub" "❌ Failed" "Failed to push code"
+    exit 1
 fi
 
-# Netlify deployment
-echo "🌐 Starting Netlify deployment..."
-if ! netlify deploy --prod --site spiffy-licorice-69cf1c; then
-    handle_error "Netlify" "Failed to deploy to Netlify"
+# Netlify Deployment
+echo "Deploying to Netlify..."
+if cd frontend && npm run build && netlify deploy --prod; then
+    send_telegram_notification "Netlify" "✅ Success" "Frontend deployed successfully"
+else
+    send_telegram_notification "Netlify" "❌ Failed" "Frontend deployment failed"
+    exit 1
 fi
 
-# Render deployment
-echo "⚡ Starting Render deployment..."
-if ! curl -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-    -H "Authorization: Bearer ${RENDER_API_KEY}"; then
-    handle_error "Render" "Failed to trigger Render deployment"
+# Render Deployment
+echo "Deploying to Render..."
+if curl -X POST "$RENDER_DEPLOY_HOOK"; then
+    send_telegram_notification "Render" "✅ Success" "Backend deployment triggered"
+else
+    send_telegram_notification "Render" "❌ Failed" "Failed to trigger backend deployment"
+    exit 1
 fi
 
-# Success notification
-success_message="✅ All deployments completed successfully!"
-echo "$success_message"
-send_telegram_notification "$success_message" 
+echo "Deployment process completed!"
+send_telegram_notification "Overall" "✅ Complete" "All deployments finished successfully" 
