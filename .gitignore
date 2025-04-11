@@ -74,3 +74,6 @@ dump.rdb
 # Cache
 .cache/
 .pytest_cache/
+
+# .env file
+.env
