@@ -6,17 +6,27 @@ on:
   schedule:
     - cron: '0 0 * * *'  # Her gün gece yarısı
 
+# Add permissions needed for GitHub token
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+  
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper deployments
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
           
       - name: Install Dependencies
         run: |
@@ -49,15 +59,18 @@ jobs:
         run: |
           if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "Deploying to Render via webhook..."
-            curl -X POST $RENDER_DEPLOY_HOOK_URL
+            curl -X POST $RENDER_DEPLOY_HOOK_URL -f
           elif [ -n "$RENDER_SERVICE_ID" ] && [ -n "$RENDER_API_KEY" ]; then
             echo "Deploying to Render via API..."
             curl -X POST \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
+              -f \
               https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys
           else
             echo "No Render deployment configuration found. Skipping Render deployment."
+            # Exit success even if no config exists
+            exit 0
           fi
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
