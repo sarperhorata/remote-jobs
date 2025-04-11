@@ -76,32 +76,19 @@ cd ..
 
 # Render Deployment
 echo "==== Deploying to Render ===="
-if [ -z "$RENDER_API_KEY" ] || [ -z "$RENDER_SERVICE_ID" ]; then
-    if [ ! -z "$RENDER_DEPLOY_HOOK" ]; then
-        echo "Using Render deploy hook"
-        if curl -X POST "$RENDER_DEPLOY_HOOK"; then
-            echo "Render deployment triggered via hook"
-            send_telegram_notification "Render" "✅ Triggered" "Backend deployment triggered via webhook"
-        else
-            echo "Render deployment failed"
-            send_telegram_notification "Render" "❌ Failed" "Failed to trigger backend deployment"
-            exit 1
-        fi
-    else
-        echo "Render deployment skipped: RENDER_API_KEY, RENDER_SERVICE_ID, or RENDER_DEPLOY_HOOK not set"
-        send_telegram_notification "Render" "⚠️ Skipped" "Environment variables not set"
-    fi
-else
-    if curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-         -H "Authorization: Bearer $RENDER_API_KEY" \
-         -H "Content-Type: application/json"; then
-        echo "Render deployment triggered via API"
-        send_telegram_notification "Render" "✅ Triggered" "Backend deployment triggered via API"
+if [ ! -z "$RENDER_DEPLOY_HOOK" ]; then
+    echo "Using Render deploy hook URL"
+    if curl -X POST "$RENDER_DEPLOY_HOOK"; then
+        echo "Render deployment triggered via hook"
+        send_telegram_notification "Render" "✅ Triggered" "Backend deployment triggered via webhook"
     else
         echo "Render deployment failed"
         send_telegram_notification "Render" "❌ Failed" "Failed to trigger backend deployment"
         exit 1
     fi
+else
+    echo "Render deployment skipped: RENDER_DEPLOY_HOOK not set"
+    send_telegram_notification "Render" "⚠️ Skipped" "RENDER_DEPLOY_HOOK not set"
 fi
 
 echo "Deployment process completed! $(date +'%Y-%m-%d %H:%M:%S')"
