@@ -1,0 +1,6 @@
+# Remote Jobs Project - Crontab Configuration
+# Run deployment at midnight every day
+0 0 * * * /Users/sarperhorata/Remote\ Jobs/scripts/deploy.sh >> /Users/sarperhorata/Remote\ Jobs/logs/deploy.log 2>&1
+
+# Wake up Render service every 14 minutes to prevent sleeping on free tier
+*/14 * * * * curl -s https://remote-jobs-api.onrender.com/health >> /Users/sarperhorata/Remote\ Jobs/logs/wake_render.log 2>&1 

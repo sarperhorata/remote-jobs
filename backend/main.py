@@ -65,7 +65,7 @@ telegram_bot_thread = None
 
 # Initialize scheduler
 scheduler = BackgroundScheduler()
-scheduler.add_job(wake_up_render, 'interval', minutes=10)
+scheduler.add_job(wake_up_render, 'interval', minutes=14, id='wake_up_render', replace_existing=True)
 scheduler.start()
 
 RENDER_URL = os.getenv('RENDER_URL', 'https://remote-jobs-62gn.onrender.com')
@@ -96,9 +96,9 @@ async def startup_event():
     else:
         logger.error("MongoDB connection failed")
 
-    # Set up scheduler
-    scheduler = setup_scheduler()
-    app.state.scheduler = scheduler
+    # Set up scheduler with job archiving and additional tasks
+    async_scheduler = setup_scheduler()
+    app.state.scheduler = async_scheduler
     logger.info("Application startup complete")
 
 def start_telegram_bot():

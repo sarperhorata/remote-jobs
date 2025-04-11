@@ -19,7 +19,8 @@ def setup_scheduler():
         archive_old_jobs,
         CronTrigger(hour=0, minute=0),
         id='archive_old_jobs',
-        name='Archive old jobs daily at midnight'
+        name='Archive old jobs daily at midnight',
+        replace_existing=True
     )
     
     # Schedule wake-up job to run every 14 minutes
@@ -27,10 +28,11 @@ def setup_scheduler():
         wake_up_render,
         IntervalTrigger(minutes=14),
         id='wake_up_render',
-        name='Wake up Render service every 14 minutes'
+        name='Wake up Render service every 14 minutes',
+        replace_existing=True
     )
     
     scheduler.start()
-    logger.info("Scheduler started with jobs: archive_old_jobs and wake_up_render")
+    logger.info("Scheduler started with jobs: archive_old_jobs (daily at midnight) and wake_up_render (every 14 minutes)")
     
     return scheduler 

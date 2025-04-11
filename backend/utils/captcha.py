@@ -1,73 +1,127 @@
 import os
-import requests
 import logging
-from typing import Optional, Dict, Any
+import aiohttp
+import json
+from typing import Optional, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
 
 class CaptchaVerifier:
-    """CAPTCHA doğrulama işlemleri"""
+    # Get secret keys from environment variables
+    RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
+    HCAPTCHA_SECRET_KEY = os.getenv("HCAPTCHA_SECRET_KEY")
     
-    @staticmethod
-    def verify_recaptcha(recaptcha_response: str) -> bool:
+    # Verification endpoints
+    RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify"
+    HCAPTCHA_VERIFY_URL = "https://hcaptcha.com/siteverify"
+    
+    @classmethod
+    async def verify_token(cls, token: str, remote_ip: Optional[str] = None) -> bool:
         """
-        Google reCAPTCHA doğrulaması yapar.
+        Verify a CAPTCHA token. Automatically detects whether it's reCAPTCHA or hCaptcha.
         
         Args:
-            recaptcha_response: reCAPTCHA yanıtı
+            token: The CAPTCHA token from the client
+            remote_ip: The IP address of the client (optional)
             
         Returns:
-            bool: Doğrulama başarılıysa True, değilse False
+            bool: True if verification succeeded, False otherwise
         """
-        recaptcha_secret = os.getenv("RECAPTCHA_SECRET_KEY")
-        
-        if not recaptcha_secret:
-            logger.warning("RECAPTCHA_SECRET_KEY environment variable is not set")
-            return True  # Geliştirme ortamında doğrulamayı atla
-        
-        try:
-            response = requests.post(
-                "https://www.google.com/recaptcha/api/siteverify",
-                data={
-                    "secret": recaptcha_secret,
-                    "response": recaptcha_response
-                }
-            )
+        # Skip verification in development mode if configured
+        if os.getenv("CAPTCHA_SKIP_VERIFICATION") == "true":
+            logger.warning("CAPTCHA verification skipped due to CAPTCHA_SKIP_VERIFICATION=true")
+            return True
             
-            result = response.json()
-            return result.get("success", False)
+        # Determine which CAPTCHA service to use based on token prefix
+        if token.startswith("hc-"):
+            return await cls.verify_hcaptcha(token, remote_ip)
+        else:
+            return await cls.verify_recaptcha(token, remote_ip)
+    
+    @classmethod
+    async def verify_recaptcha(cls, token: str, remote_ip: Optional[str] = None) -> bool:
+        """
+        Verify a Google reCAPTCHA token
+        
+        Args:
+            token: The reCAPTCHA token from the client
+            remote_ip: The IP address of the client (optional)
+            
+        Returns:
+            bool: True if verification succeeded, False otherwise
+        """
+        if not cls.RECAPTCHA_SECRET_KEY:
+            logger.error("reCAPTCHA secret key not configured")
+            return False
+            
+        try:
+            data = {
+                "secret": cls.RECAPTCHA_SECRET_KEY,
+                "response": token
+            }
+            
+            if remote_ip:
+                data["remoteip"] = remote_ip
+                
+            async with aiohttp.ClientSession() as session:
+                async with session.post(cls.RECAPTCHA_VERIFY_URL, data=data) as response:
+                    if response.status != 200:
+                        logger.error(f"reCAPTCHA verification failed with status {response.status}")
+                        return False
+                        
+                    result = await response.json()
+                    success = result.get("success", False)
+                    
+                    if not success:
+                        error_codes = result.get("error-codes", [])
+                        logger.warning(f"reCAPTCHA verification failed: {error_codes}")
+                        
+                    return success
+                    
         except Exception as e:
-            logger.error(f"Error verifying reCAPTCHA: {str(e)}")
+            logger.error(f"Error during reCAPTCHA verification: {str(e)}")
             return False
     
-    @staticmethod
-    def verify_hcaptcha(hcaptcha_response: str) -> bool:
+    @classmethod
+    async def verify_hcaptcha(cls, token: str, remote_ip: Optional[str] = None) -> bool:
         """
-        hCaptcha doğrulaması yapar.
+        Verify an hCaptcha token
         
         Args:
-            hcaptcha_response: hCaptcha yanıtı
+            token: The hCaptcha token from the client
+            remote_ip: The IP address of the client (optional)
             
         Returns:
-            bool: Doğrulama başarılıysa True, değilse False
+            bool: True if verification succeeded, False otherwise
         """
-        hcaptcha_secret = os.getenv("HCAPTCHA_SECRET_KEY")
-        
-        if not hcaptcha_secret:
-            logger.warning("HCAPTCHA_SECRET_KEY environment variable is not set")
-            return True  # Geliştirme ortamında doğrulamayı atla
-        
-        try:
-            response = requests.post(
-                "https://hcaptcha.com/siteverify",
-                data={
-                    "secret": hcaptcha_secret,
-                    "response": hcaptcha_response
-                }
-            )
+        if not cls.HCAPTCHA_SECRET_KEY:
+            logger.error("hCaptcha secret key not configured")
+            return False
             
-            result = response.json()
-            return result.get("success", False)
+        try:
+            data = {
+                "secret": cls.HCAPTCHA_SECRET_KEY,
+                "response": token
+            }
+            
+            if remote_ip:
+                data["remoteip"] = remote_ip
+                
+            async with aiohttp.ClientSession() as session:
+                async with session.post(cls.HCAPTCHA_VERIFY_URL, data=data) as response:
+                    if response.status != 200:
+                        logger.error(f"hCaptcha verification failed with status {response.status}")
+                        return False
+                        
+                    result = await response.json()
+                    success = result.get("success", False)
+                    
+                    if not success:
+                        error_codes = result.get("error-codes", [])
+                        logger.warning(f"hCaptcha verification failed: {error_codes}")
+                        
+                    return success
+                    
         except Exception as e:
-            logger.error(f"Error verifying hCaptcha: {str(e)}")
+            logger.error(f"Error during hCaptcha verification: {str(e)}")
             return False 

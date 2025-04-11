@@ -37,6 +37,10 @@ class JobCrawler:
             return await self._crawl_we_work_remotely(website)
         elif website.website_type == WebsiteType.REMOTE_CO:
             return await self._crawl_remote_co(website)
+        elif website.website_type == WebsiteType.JOBS_FROM_SPACE:
+            return await self._crawl_jobs_from_space(website)
+        elif website.website_type == WebsiteType.REMOTIVE:
+            return await self._crawl_remotive(website)
         elif website.website_type == WebsiteType.CUSTOM:
             return await self._crawl_custom_website(website)
         else:
@@ -184,6 +188,86 @@ class JobCrawler:
             
         except Exception as e:
             logger.error(f"Error crawling Remote.co: {e}")
+            return []
+    
+    async def _crawl_jobs_from_space(self, website: Website) -> List[Job]:
+        """
+        Extracts job listings from JobsFromSpace
+        """
+        jobs = []
+        try:
+            response = self.session.get(website.url)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Try to find job listings container
+            job_listings_container = soup.find('div', class_='job-listings') or soup.find('div', {'id': 'job-list'})
+            
+            # If container not found with specific classes, try more general approach
+            if not job_listings_container:
+                job_listings = soup.find_all('div', class_=lambda c: c and ('job-card' in c.lower() or 'job-listing' in c.lower()))
+            else:
+                job_listings = job_listings_container.find_all('div', class_=lambda c: c and ('job' in c.lower()))
+            
+            for job in job_listings:
+                try:
+                    # Extract job title
+                    title_elem = job.find('h2') or job.find('h3') or job.find('a', class_=lambda c: c and ('title' in c.lower()))
+                    
+                    # Extract company name
+                    company_elem = job.find('span', class_=lambda c: c and ('company' in c.lower())) or \
+                                  job.find('div', class_=lambda c: c and ('company' in c.lower()))
+                    
+                    # Extract job URL
+                    link_elem = job.find('a', href=True)
+                    
+                    # Extract location
+                    location_elem = job.find('span', class_=lambda c: c and ('location' in c.lower())) or \
+                                   job.find('div', class_=lambda c: c and ('location' in c.lower()))
+                    
+                    # Extract tags/skills
+                    tags_container = job.find('div', class_=lambda c: c and ('tags' in c.lower() or 'skills' in c.lower()))
+                    tags = []
+                    if tags_container:
+                        tag_elements = tags_container.find_all('span') or tags_container.find_all('a')
+                        tags = [tag.text.strip() for tag in tag_elements]
+                    
+                    # Continue only if we have the essential information
+                    if not title_elem or not link_elem:
+                        continue
+                    
+                    title = title_elem.text.strip()
+                    company = company_elem.text.strip() if company_elem else "Unknown"
+                    
+                    # Format URL properly
+                    url = link_elem['href']
+                    if not url.startswith(('http://', 'https://')):
+                        url = f"https://www.jobsfromspace.com{url}" if not url.startswith('/') else f"https://www.jobsfromspace.com{url}"
+                    
+                    location = location_elem.text.strip() if location_elem else None
+                    
+                    # Create job data
+                    job_data = {
+                        "title": title,
+                        "company": company,
+                        "url": url,
+                        "location": location,
+                        "tags": tags,
+                        "is_remote": True,  # Assuming all jobs from JobsFromSpace are remote
+                        "website_id": website.id,
+                        "posted_date": datetime.now(),
+                    }
+                    
+                    jobs.append(job_data)
+                except Exception as e:
+                    logger.error(f"Error parsing job from JobsFromSpace: {e}")
+            
+            logger.info(f"Found {len(jobs)} jobs on JobsFromSpace")
+            return jobs
+            
+        except Exception as e:
+            logger.error(f"Error crawling JobsFromSpace: {e}")
             return []
     
     async def _crawl_custom_website(self, website: Website) -> List[Job]:
@@ -352,4 +436,47 @@ class JobCrawler:
                 "description": "",
                 "salary": None,
                 "raw_data": None
-            } 
+            }
+    
+    async def _crawl_remotive(self, website: Website) -> List[Job]:
+        """
+        Extracts job listings from Remotive.io
+        """
+        from .remotive_parser import RemotiveParser
+        
+        jobs = []
+        try:
+            # Initialize parser
+            parser = RemotiveParser()
+            logger.info(f"Using Remotive API to get jobs from {website.url}")
+            
+            # Use API to get jobs
+            raw_jobs = parser.get_jobs_from_api(limit=100)
+            
+            for job in raw_jobs:
+                try:
+                    # Map API response to our Job model
+                    job_data = {
+                        "title": job.get("title", ""),
+                        "company": job.get("company_name", "Unknown"),
+                        "url": job.get("url", ""),
+                        "description": job.get("description", ""),
+                        "location": job.get("candidate_required_location", "Remote"),
+                        "tags": job.get("tags", []),
+                        "is_remote": True,  # Remotive is all remote jobs
+                        "website_id": website.id,
+                        "salary": job.get("salary", ""),
+                        "posted_date": datetime.fromisoformat(job.get("publication_date", datetime.now().isoformat())),
+                        "raw_data": job
+                    }
+                    
+                    jobs.append(job_data)
+                except Exception as e:
+                    logger.error(f"Error parsing Remotive job: {e}")
+                    continue
+            
+            logger.info(f"Found {len(jobs)} Remotive jobs")
+            return jobs
+        except Exception as e:
+            logger.error(f"Error crawling Remotive: {e}")
+            return [] 
