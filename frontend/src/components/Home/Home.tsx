@@ -6,6 +6,7 @@ import { BiHealth, BiDollar, BiChalkboard, BiStore, BiPalette } from 'react-icon
 import { HomeJobService } from '../../services/AllServices';
 import JobCard from '../JobCard/JobCard';
 import { Job } from '../../types/job';
+import { IconType } from 'react-icons';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -27,18 +28,22 @@ const Home: React.FC = () => {
     navigate(`/jobs?${params.toString()}`);
   };
 
-  const categories = [
-    { name: 'Software Development', icon: <BsCode size={24} />, count: 120 },
-    { name: 'Marketing', icon: <BsMegaphone size={24} />, count: 85 },
-    { name: 'Design', icon: <BiPalette size={24} />, count: 64 },
-    { name: 'Customer Support', icon: <BsChatDots size={24} />, count: 53 },
-    { name: 'Sales', icon: <BiDollar size={24} />, count: 47 },
-    { name: 'Content Writing', icon: <BsPencil size={24} />, count: 42 },
-    { name: 'DevOps', icon: <BsServer size={24} />, count: 38 },
-    { name: 'Healthcare', icon: <BiHealth size={24} />, count: 31 },
-    { name: 'Education', icon: <BiChalkboard size={24} />, count: 28 },
-    { name: 'E-commerce', icon: <BiStore size={24} />, count: 25 },
+  const categories: { name: string; icon: IconType; count: number }[] = [
+    { name: 'Software Development', icon: BsCode, count: 120 },
+    { name: 'Marketing', icon: BsMegaphone, count: 85 },
+    { name: 'Design', icon: BiPalette, count: 64 },
+    { name: 'Customer Support', icon: BsChatDots, count: 53 },
+    { name: 'Sales', icon: BiDollar, count: 47 },
+    { name: 'Content Writing', icon: BsPencil, count: 42 },
+    { name: 'DevOps', icon: BsServer, count: 38 },
+    { name: 'Healthcare', icon: BiHealth, count: 31 },
+    { name: 'Education', icon: BiChalkboard, count: 28 },
+    { name: 'E-commerce', icon: BiStore, count: 25 },
   ];
+
+  const SearchIcon = BsSearch;
+  const MapIcon = BsMap;
+  const BriefcaseIcon = BsBriefcase;
 
   return (
     <div className="min-h-screen">
@@ -59,7 +64,7 @@ const Home: React.FC = () => {
             <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                 <div className="relative">
-                  <BsSearch className="absolute left-3 top-3 text-gray-400" />
+                  {(SearchIcon as any)({ className: "absolute left-3 top-3 text-gray-400", size: 16 })}
                   <input
                     type="text"
                     placeholder="Job title or keyword"
@@ -71,7 +76,7 @@ const Home: React.FC = () => {
               </div>
               <div>
                 <div className="relative">
-                  <BsMap className="absolute left-3 top-3 text-gray-400" />
+                  {(MapIcon as any)({ className: "absolute left-3 top-3 text-gray-400", size: 16 })}
                   <input
                     type="text"
                     placeholder="Location"
@@ -83,7 +88,7 @@ const Home: React.FC = () => {
               </div>
               <div>
                 <div className="relative">
-                  <BsBriefcase className="absolute left-3 top-3 text-gray-400" />
+                  {(BriefcaseIcon as any)({ className: "absolute left-3 top-3 text-gray-400", size: 16 })}
                   <select
                     className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                     value={jobType}
@@ -168,17 +173,20 @@ const Home: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {categories.map((category) => (
-              <div 
-                key={category.name}
-                className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => navigate(`/jobs?category=${encodeURIComponent(category.name)}`)}
-              >
-                <div className="text-blue-600 mb-3">{category.icon}</div>
-                <h3 className="font-semibold text-lg mb-1">{category.name}</h3>
-                <p className="text-gray-500 text-sm">{category.count} jobs available</p>
-              </div>
-            ))}
+            {categories.map((category) => {
+              const IconComponent = category.icon;
+              return (
+                <div
+                  key={category.name}
+                  className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/jobs?category=${encodeURIComponent(category.name)}`)}
+                >
+                  <div className="text-blue-600 mb-3">{(IconComponent as any)({ size: 24 })}</div>
+                  <h3 className="font-semibold text-lg mb-1">{category.name}</h3>
+                  <p className="text-gray-500 text-sm">{category.count} jobs available</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
