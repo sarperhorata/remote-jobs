@@ -175,7 +175,7 @@ const Profile: React.FC = () => {
                     </label>
                     {user?.profile?.cvUrl && (
                       <a
-                        href={user.profile.cvUrl}
+                        href={user.profile.cvUrl || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline"
