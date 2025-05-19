@@ -94,6 +94,13 @@ async def stop(self):
             await self.application.stop()
             await self.application.shutdown()
 
+async def send_deployment_notification(self, message: str) -> None:
+        """Send deployment notification to the Telegram channel."""
+        try:
+            await self.application.bot.send_message(chat_id='@remote_jobs_channel', text=message)
+        except Exception as e:
+            logger.error(f"Failed to send deployment notification: {e}")
+
 # Run the bot if this file is executed directly
 if __name__ == "__main__":
     bot = RemoteJobsBot()

@@ -122,4 +122,27 @@ jobs:
             }" \
             "$BACKEND_URL/notification/deployment" || \
             echo "Failed to send deployment notification"
+        continue-on-error: true
+        
+      # Send deployment notification to Telegram
+      - name: Send deployment notification to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B | sed 's/"/\\"/g')
+          
+          # Use the status from the Render deployment step or "failed" if the workflow fails
+          DEPLOY_STATUS="${{ steps.render-deploy.outputs.deploy_status || 'failed' }}"
+          
+          echo "Sending deployment notification to Telegram..."
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"message\": \"Deployment Status: ${DEPLOY_STATUS}\nCommit: ${COMMIT_HASH}\nMessage: ${COMMIT_MSG}\nTimestamp: ${TIMESTAMP}\"
+            }" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" || \
+            echo "Failed to send deployment notification to Telegram"
         continue-on-error: true 
