@@ -35,20 +35,31 @@ jobs:
           npm run build
           
       - name: Deploy to Netlify
+        id: netlify
         run: |
           cd frontend
           npx netlify-cli deploy --prod
+        continue-on-error: true
           
-      - name: Send Telegram Notification
+      - name: Send Netlify Deployment Status
+        if: always()
         run: |
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "@buzz2remote",
-            "text": "🚀 Deployment Update\n\n✅ Frontend TypeScript errors fixed\n✅ Icons updated\n✅ UI improvements completed\n\nDeployment successful! 🎉"
-          }'
+          if [ "${{ steps.netlify.outcome }}" == "success" ]; then
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "chat_id": "@buzz2remote",
+              "text": "🌐 Netlify Deployment\n\n✅ Status: Success\n🔗 Site: https://buzz2remote.netlify.app\n\nDeployment completed successfully! 🎉"
+            }'
+          else
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "chat_id": "@buzz2remote",
+              "text": "🌐 Netlify Deployment\n\n❌ Status: Failed\n\nDeployment failed. Please check the GitHub Actions logs for details."
+            }'
+          fi
           
-      # Deploy to Render using webhook
       - name: Deploy to Render via webhook
         id: render-deploy
         env:
@@ -86,54 +97,44 @@ jobs:
           
           echo "deploy_status=${DEPLOY_STATUS}" >> "$GITHUB_OUTPUT"
         continue-on-error: true
-        
-      # Send deployment notification to backend
-      - name: Send deployment notification
+
+      - name: Send Render Deployment Status
         if: always()
-        env:
-          BACKEND_URL: ${{ secrets.BACKEND_URL }}
         run: |
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DEPLOY_STATUS="${{ steps.render-deploy.outputs.deploy_status || 'failed' }}"
+          if [ "$DEPLOY_STATUS" == "success" ]; then
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "chat_id": "@buzz2remote",
+              "text": "🚀 Render Deployment\n\n✅ Status: Success\n🔗 Site: https://buzz2remote.onrender.com\n\nDeployment completed successfully! 🎉"
+            }'
+          elif [ "$DEPLOY_STATUS" == "failed" ]; then
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "chat_id": "@buzz2remote",
+              "text": "🚀 Render Deployment\n\n❌ Status: Failed\n\nDeployment failed. Please check the GitHub Actions logs for details."
+            }'
+          else
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "chat_id": "@buzz2remote",
+              "text": "🚀 Render Deployment\n\n⚠️ Status: Skipped\n\nNo Render deployment configuration found."
+            }'
+          fi
+
+      - name: Send GitHub Deployment Status
+        if: always()
+        run: |
           COMMIT_HASH=$(git rev-parse --short HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B | sed 's/"/\\"/g')
-          
-          # Use the status from the Render deployment step or "failed" if the workflow fails
-          DEPLOY_STATUS="${{ steps.render-deploy.outputs.deploy_status || 'failed' }}"
-          
-          echo "Sending deployment notification to backend..."
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"environment\": \"production\",
-              \"status\": \"${DEPLOY_STATUS}\",
-              \"commit\": \"${COMMIT_HASH}\",
-              \"message\": \"${COMMIT_MSG}\",
-              \"timestamp\": \"${TIMESTAMP}\"
-            }" \
-            "$BACKEND_URL/notification/deployment" || \
-            echo "Failed to send deployment notification"
-        continue-on-error: true
-        
-      # Send deployment notification to Telegram
-      - name: Send deployment notification to Telegram
-        if: always()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          COMMIT_MSG=$(git log -1 --pretty=%B | sed 's/"/\\"/g')
           
-          # Use the status from the Render deployment step or "failed" if the workflow fails
-          DEPLOY_STATUS="${{ steps.render-deploy.outputs.deploy_status || 'failed' }}"
-          
-          echo "Sending deployment notification to Telegram..."
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"@JobsOfTheBot\",
-              \"text\": \"Deployment Status: ${DEPLOY_STATUS}\nCommit: ${COMMIT_HASH}\nMessage: ${COMMIT_MSG}\nTimestamp: ${TIMESTAMP}\"
-            }" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" || \
-            echo "Failed to send deployment notification to Telegram"
-        continue-on-error: true 
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"chat_id\": \"@buzz2remote\",
+            \"text\": \"📦 GitHub Deployment\n\n✅ Status: Success\n🔗 Commit: ${COMMIT_HASH}\n📝 Message: ${COMMIT_MSG}\n⏰ Time: ${TIMESTAMP}\n\nDeployment completed successfully! 🎉\"
+          }" 
