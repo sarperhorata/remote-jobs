@@ -41,9 +41,12 @@ jobs:
           
       - name: Send Telegram Notification
         run: |
-          curl -X POST -H "Content-Type: application/json" \
-          -d '{"chat_id": "@buzz2remote", "text": "🚀 Deployment Update\nPlatform: GitHub\nStatus: ✅ Success\nDetails: Frontend deployed successfully"}' \
-          https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "@buzz2remote",
+            "text": "🚀 Deployment Update\n\n✅ Frontend TypeScript errors fixed\n✅ Icons updated\n✅ UI improvements completed\n\nDeployment successful! 🎉"
+          }'
           
       # Deploy to Render using webhook
       - name: Deploy to Render via webhook
